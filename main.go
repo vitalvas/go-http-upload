@@ -62,8 +62,18 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(hash, string(bs))
 	hashed := hash.Sum(nil)
 
-	info := strings.Split(header.Filename, ".")
-	filepath := fmt.Sprintf("%s/%x/%x/%x.%s", *OsPath, hashed[0:1], hashed[1:2], hashed[2:], info[len(info)-1])
+	info := strings.Split(strings.ToLower(header.Filename), ".")
+
+	var ext string
+	if len(info) > 1 {
+		if len(info) > 2 && info[len(info)-2] == "tar" && info[len(info)-1] == "gz" {
+			ext = ".tar.gz"
+		} else {
+			ext = fmt.Sprintf(".%s", info[len(info)-1])
+		}
+	}
+
+	filepath := fmt.Sprintf("%s/%x/%x/%x%s", *OsPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 
 	err = os.MkdirAll(fmt.Sprintf("%s/%x/%x/", *OsPath, hashed[0:1], hashed[1:2]), 0755)
 	if err != nil {
@@ -73,7 +83,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 
 	err = ioutil.WriteFile(filepath, bs, 0644)
 
-	path := fmt.Sprintf("%s/%x/%x/%x.%s", *WebPath, hashed[0:1], hashed[1:2], hashed[2:], info[len(info)-1])
+	path := fmt.Sprintf("%s/%x/%x/%x%s", *WebPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 	http.Redirect(w, r, path, 302)
 }
 
