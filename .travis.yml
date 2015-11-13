@@ -1,0 +1,38 @@
+language: go
+go:
+  - 1.4.2
+  - 1.5.1
+  - tip
+addons:
+  apt:
+    packages:
+      - upx-ucl
+env:
+  - GOOS=linux
+before_script:
+  - mkdir -p dst
+  - go get github.com/pwaller/goupx
+script:
+  - GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}') main.go middleware.go
+  - GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go middleware.go
+after_script:
+  - goupx $(find dst -type f)
+notifications:
+  webhooks:
+    - https://exchange.vitalvas.com/api/hooks.json?tag=go-http-upload
+deploy:
+  provider: gcs
+  access_key_id: GOOGUBXIHCW6F2AQHH3D
+  secret_access_key:
+    secure: w4eCG8TpsZWoSDeymCZWi3JsdaGUcNWWerF2TJgEYgaOnZmgP5tgcFDzETq+DVBy5VsZ0Blt6Hqxp9hZ66eHYA2rkjaua0u/Lge0WA/lH4Q+5VkwA2ETn6MuKCVHYklyDXcWZ6qA5BXRWFo/i9viUPo0/Dt5rgGN3XqrVCDaqApaqMsCHlVMORSmKUuXLHf/FgzgQTWCU3oOlmH8iahfcWhauJF4S00O3Ukrv1NQBhfcN2W7HZPzBMmprOCSIJdQz/23SQUTsgNoMrzJNtxfeXpDBm8XF464L8wHbVpmhCTHK/OvhT9/457Juf4E6OPx6PDXpI0jkQGtV4vi62aAMomVmar5aUVujYtPO68ONfGTyWd6hbV0fsrVziSEwBViXxNsvS44opwVS3lP1I8aJtEPmKE5ohCNHHfpDan6Qu93nm+qc6dC9H5oZAq5G5+SA/8qexG1SEeDTWh27rXBLU56wpcO8prR8ik2g8mumGN5J1Z0wVXBeu/U/h9xn8xeXJr2+vW1g75cnpL46YYVJQBLR3z2uURiQRlaZ90A9VysjiX7qD5DgJHjWjdC0S7qimcB/vo6VdCaGbs/7bx2bcR7OWS2H4aGy37Fs0IP4gELNiCAOpWI0QIctln8J68870gSIg9Bt685iPDJDMpilROQTyAn5/IDKIxK0AXUEI0=
+  bucket: xs-services
+  local-dir: dst
+  skip-cleanup: true
+  on:
+    repo: vitalvas/go-http-upload
+    branch: master
+
+matrix:
+  allow_failures:
+    - go: tip
+
