@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -11,7 +12,10 @@ import (
 	"net/http"
 	"net/http/fcgi"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 )
 
 var err error
@@ -25,12 +29,6 @@ var (
 	Password = flag.String("password", "admin123", "Web password")
 	Usefcgi  = flag.Bool("fcgi", false, "FastCGI")
 )
-
-func ifErr(err error) {
-	if err != nil {
-		log.Panicln(err.Error())
-	}
-}
 
 func upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -91,11 +89,66 @@ func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello!")
 }
 
+func list(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
+	type Web struct {
+		List     []string
+		Version  string
+		LoadTime string
+	}
+
+	var fileList Web
+
+	fileList.Version = strings.Title(runtime.Version())
+
+	err = filepath.Walk(*OsPath, func(path string, f os.FileInfo, err error) error {
+		finfo, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		if !finfo.IsDir() {
+			path = strings.TrimPrefix(path, *OsPath)
+			if strings.HasPrefix(path, "/") {
+				path = strings.TrimPrefix(path, "/")
+			}
+			fileList.List = append(fileList.List, fmt.Sprintf("%s%s", *WebPath, path))
+		}
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	const tpl = `<html><head><title>List</title></head>
+<body>
+<ul>{{range .List}}<li><a href="{{.}}">{{.}}</a></li>{{end}}</ul>
+<hr>
+<small>Go: {{.Version}} | GT: {{.LoadTime}}</small>
+</body></html>`
+	t, err := template.New("webpage").Parse(tpl)
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
+	err = t.Execute(w, fileList)
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+}
+
 func main() {
 	flag.Parse()
 	fs := HideDir(http.FileServer(http.Dir(*OsPath)))
 	http.Handle(*WebPath, http.StripPrefix(*WebPath, fs))
 	http.HandleFunc("/", index)
+	http.HandleFunc("/list", BasicAuth(list, *Login, *Password))
 	http.HandleFunc("/upload", logger(BasicAuth(upload, *Login, *Password)))
 	bind := fmt.Sprintf("%s:%d", *HttpAddr, *HttpPort)
 	log.Println("Starting on", bind)
@@ -109,5 +162,4 @@ func main() {
 	} else {
 		http.ListenAndServe(bind, nil)
 	}
-
 }

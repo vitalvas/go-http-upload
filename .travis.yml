@@ -14,7 +14,6 @@ before_script:
 script:
   - GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}') main.go middleware.go
   - GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go middleware.go
-after_script:
   - goupx $(find dst -type f)
 notifications:
   webhooks:
@@ -27,9 +26,6 @@ deploy:
   bucket: xs-services
   local-dir: dst
   skip-cleanup: true
-  on:
-    repo: vitalvas/go-http-upload
-    branch: master
 
 matrix:
   allow_failures:
