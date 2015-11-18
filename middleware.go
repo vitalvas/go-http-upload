@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func logger(handler http.HandlerFunc) http.HandlerFunc {
+func Logger(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Printf("Access [%s] %s", r.Method, r.URL.Path)

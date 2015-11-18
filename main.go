@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"flag"
 	"fmt"
+	"github.com/pivotal-golang/bytefmt"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -93,7 +94,11 @@ func list(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	type Web struct {
-		List     []string
+		List []struct {
+			Name string
+			Size string
+			Time string
+		}
 		Version  string
 		LoadTime string
 	}
@@ -112,7 +117,17 @@ func list(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(path, "/") {
 				path = strings.TrimPrefix(path, "/")
 			}
-			fileList.List = append(fileList.List, fmt.Sprintf("%s%s", *WebPath, path))
+			timearr := strings.Split(fmt.Sprintf("%q", finfo.ModTime()), " ")
+			thisfile := struct {
+				Name string
+				Size string
+				Time string
+			}{
+				fmt.Sprintf("%s%s", *WebPath, path),
+				bytefmt.ByteSize(uint64(finfo.Size())),
+				fmt.Sprintf("%s %s", timearr[0][1:], timearr[1]),
+			}
+			fileList.List = append(fileList.List, thisfile)
 		}
 		return nil
 	})
@@ -124,7 +139,9 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 	const tpl = `<html><head><title>List</title></head>
 <body>
-<ul>{{range .List}}<li><a href="{{.}}">{{.}}</a></li>{{end}}</ul>
+<table>{{range .List}}
+<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td>{{.Time}}</td><td>{{.Size}}</td></tr>
+{{end}}</table>
 <hr>
 <small>Go: {{.Version}} | GT: {{.LoadTime}}</small>
 </body></html>`
@@ -134,6 +151,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+
 	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
 	err = t.Execute(w, fileList)
 
@@ -149,7 +167,7 @@ func main() {
 	http.Handle(*WebPath, http.StripPrefix(*WebPath, fs))
 	http.HandleFunc("/", index)
 	http.HandleFunc("/list", BasicAuth(list, *Login, *Password))
-	http.HandleFunc("/upload", logger(BasicAuth(upload, *Login, *Password)))
+	http.HandleFunc("/upload", Logger(BasicAuth(upload, *Login, *Password)))
 	bind := fmt.Sprintf("%s:%d", *HttpAddr, *HttpPort)
 	log.Println("Starting on", bind)
 	if *Usefcgi {
