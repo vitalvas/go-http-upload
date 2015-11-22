@@ -1,33 +1,36 @@
 language: go
 go:
-  - 1.5.1
-  - tip
+- 1.5.1
+- tip
 addons:
   apt:
     packages:
-      - upx-ucl
+    - upx-ucl
 env:
-  - GOOS=linux
+- GOOS=linux
 before_script:
-  - mkdir -p dst
-  - go get github.com/pwaller/goupx
+- mkdir -p dst
+- go get github.com/pwaller/goupx
 script:
-  - GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}') main.go middleware.go
-  - GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go middleware.go
-  - goupx $(find dst -type f)
+- GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}')
+  main.go middleware.go
+- GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go
+  middleware.go
+- goupx $(find dst -type f)
 notifications:
   webhooks:
-    - https://exchange.vitalvas.com/api/hooks.json?tag=go-http-upload
+  - https://exchange.vitalvas.com/api/hooks.json?tag=go-http-upload
 deploy:
   provider: gcs
-  access_key_id: GOOGUBXIHCW6F2AQHH3D
+  access_key_id: GOOG6CIQYT537FCFGQJC
   secret_access_key:
-    secure: w4eCG8TpsZWoSDeymCZWi3JsdaGUcNWWerF2TJgEYgaOnZmgP5tgcFDzETq+DVBy5VsZ0Blt6Hqxp9hZ66eHYA2rkjaua0u/Lge0WA/lH4Q+5VkwA2ETn6MuKCVHYklyDXcWZ6qA5BXRWFo/i9viUPo0/Dt5rgGN3XqrVCDaqApaqMsCHlVMORSmKUuXLHf/FgzgQTWCU3oOlmH8iahfcWhauJF4S00O3Ukrv1NQBhfcN2W7HZPzBMmprOCSIJdQz/23SQUTsgNoMrzJNtxfeXpDBm8XF464L8wHbVpmhCTHK/OvhT9/457Juf4E6OPx6PDXpI0jkQGtV4vi62aAMomVmar5aUVujYtPO68ONfGTyWd6hbV0fsrVziSEwBViXxNsvS44opwVS3lP1I8aJtEPmKE5ohCNHHfpDan6Qu93nm+qc6dC9H5oZAq5G5+SA/8qexG1SEeDTWh27rXBLU56wpcO8prR8ik2g8mumGN5J1Z0wVXBeu/U/h9xn8xeXJr2+vW1g75cnpL46YYVJQBLR3z2uURiQRlaZ90A9VysjiX7qD5DgJHjWjdC0S7qimcB/vo6VdCaGbs/7bx2bcR7OWS2H4aGy37Fs0IP4gELNiCAOpWI0QIctln8J68870gSIg9Bt685iPDJDMpilROQTyAn5/IDKIxK0AXUEI0=
+    secure: DIlO+wYEedf7LBwWVR3918zX7TGF/IsGjJ2VopWZoOkWBItKH37if3UbffbJr4naVhPQnLr14ZD7eWKPhi9TGpSjGMYOCb+psYiA7b8kXokJW4EJCCH1NcV3jaT+D2SLo46irR96JsKv5hOZMe+jdnmpIqeCJg/ITR4+54sefTS105UpbHsT2gGBJnO75n2ASdvjbg2Dx1a7007pcnIg9tguxEqdmIDHlJ70RCWB3zWoEBzWzYDkiOlmpmfbMU0gy3wnJD5jjAC5/lt3oFJDp2EDX/XwWtL3Lv3Cfc51LoZkaAivaQZCtJmJsRnQXMfNg4oLD6IutCxH/ktHJy6Lr4Jm2WBAG2fHT6uDjOkonGPx6tRGwYGdc5q84AH1RHmC5DItlP1XfeGAZkMWccv3H7EqnISZebGA2TH3UTylTWJw3C1wMPO2GS32GBjZF5N5PQPN4BgR2+OPk4qvJXnM19t1/X0acaW4/flezEjisaGwjaOItdqd5ZAnOAAzbuboayCaXU1s0uvZc6Oub3pgmuFcUEKoxnFNPZlw0l5wuQFmGEjGCvH/uLBlRlPfufcCQKqAWVY9rcKdy0vPb1XfoWSQzYZMjKlkm6NCSplQvW1+20B5HrlYust/wR+IWXua+zsrOq1N3Iyb76dk4h6ZMxTE1L3Ff5gTFJShtVF5CeM=
   bucket: xs-services
   local-dir: dst
   skip-cleanup: true
-
+  on:
+    repo: vitalvas/go-http-upload
+    branch: master
 matrix:
   allow_failures:
-    - go: tip
-
+  - go: tip
