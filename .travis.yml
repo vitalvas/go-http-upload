@@ -12,10 +12,8 @@ before_script:
 - mkdir -p dst
 - go get github.com/pwaller/goupx
 script:
-- GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}')
-  main.go middleware.go
-- GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go
-  middleware.go
+- GOARCH=amd64 go build -o dst/ImageService-amd64-$(go version | awk '{print $3}') $(find . -type f -name '*.go')
+- GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') $(find . -type f -name '*.go')
 - goupx $(find dst -type f)
 - gem install mime-types -v 2.5
 notifications:

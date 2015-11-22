@@ -74,13 +74,15 @@ func upload(w http.ResponseWriter, r *http.Request) {
 
 	filepath := fmt.Sprintf("%s/%x/%x/%x%s", *osPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 
-	err = os.MkdirAll(fmt.Sprintf("%s/%x/%x/", *osPath, hashed[0:1], hashed[1:2]), 0755)
-	if err != nil {
+	if err = os.MkdirAll(fmt.Sprintf("%s/%x/%x/", *osPath, hashed[0:1], hashed[1:2]), 0755); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	err = ioutil.WriteFile(filepath, bs, 0644)
+	if err = ioutil.WriteFile(filepath, bs, 0644); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	path := fmt.Sprintf("%s/%x/%x/%x%s", *webPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 	http.Redirect(w, r, path, 302)
@@ -107,13 +109,17 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 	fileList.Version = strings.Title(runtime.Version())
 
-	err = filepath.Walk(*osPath, func(path string, f os.FileInfo, err error) error {
+	if err = filepath.Walk(*osPath, func(path string, f os.FileInfo, err error) error {
 		finfo, err := os.Stat(path)
 		if err != nil {
 			return err
 		}
 		if !finfo.IsDir() {
 			path = strings.TrimPrefix(path, *osPath)
+			small_path := strings.TrimPrefix(*osPath, "./")
+			if strings.HasPrefix(path, small_path) {
+				path = strings.TrimPrefix(path, small_path)
+			}
 			if strings.HasPrefix(path, "/") {
 				path = strings.TrimPrefix(path, "/")
 			}
@@ -130,9 +136,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 			fileList.List = append(fileList.List, thisfile)
 		}
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -153,9 +157,8 @@ func list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
-	err = t.Execute(w, fileList)
 
-	if err != nil {
+	if err = t.Execute(w, fileList); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -171,6 +174,7 @@ func main() {
 	bind := fmt.Sprintf("%s:%d", *httpAddr, *httpPort)
 	log.Println("Starting on", bind)
 	if *useFcgi {
+		log.Println("Using FastCGI")
 		l, err := net.Listen("tcp", bind)
 		if err != nil {
 			panic(err.Error())
