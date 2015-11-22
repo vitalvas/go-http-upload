@@ -17,6 +17,7 @@ script:
 - GOARCH=arm go build -o dst/ImageService-arm-$(go version | awk '{print $3}') main.go
   middleware.go
 - goupx $(find dst -type f)
+- gem install mime-types -v 2.5
 notifications:
   webhooks:
   - https://exchange.vitalvas.com/api/hooks.json?tag=go-http-upload
