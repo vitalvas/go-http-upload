@@ -22,13 +22,13 @@ import (
 var err error
 
 var (
-	HttpAddr = flag.String("address", "127.0.0.1", "Http address")
-	HttpPort = flag.Int("port", 8080, "Http port")
-	WebPath  = flag.String("webpath", "/storage/", "Web Path")
-	OsPath   = flag.String("ospath", "./storage", "OS Path")
-	Login    = flag.String("login", "admin", "Web login")
-	Password = flag.String("password", "admin123", "Web password")
-	Usefcgi  = flag.Bool("fcgi", false, "FastCGI")
+	httpAddr = flag.String("address", "127.0.0.1", "Http address")
+	httpPort = flag.Int("port", 8080, "Http port")
+	webPath  = flag.String("webpath", "/storage/", "Web Path")
+	osPath   = flag.String("ospath", "./storage", "OS Path")
+	login    = flag.String("login", "admin", "Web login")
+	password = flag.String("password", "admin123", "Web password")
+	useFcgi  = flag.Bool("fcgi", false, "FastCGI")
 )
 
 func upload(w http.ResponseWriter, r *http.Request) {
@@ -46,14 +46,14 @@ func upload(w http.ResponseWriter, r *http.Request) {
 
 	infile, header, err := r.FormFile("image")
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer infile.Close()
 
 	bs, err := ioutil.ReadAll(infile)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -72,17 +72,17 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	filepath := fmt.Sprintf("%s/%x/%x/%x%s", *OsPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
+	filepath := fmt.Sprintf("%s/%x/%x/%x%s", *osPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 
-	err = os.MkdirAll(fmt.Sprintf("%s/%x/%x/", *OsPath, hashed[0:1], hashed[1:2]), 0755)
+	err = os.MkdirAll(fmt.Sprintf("%s/%x/%x/", *osPath, hashed[0:1], hashed[1:2]), 0755)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	err = ioutil.WriteFile(filepath, bs, 0644)
 
-	path := fmt.Sprintf("%s/%x/%x/%x%s", *WebPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
+	path := fmt.Sprintf("%s/%x/%x/%x%s", *webPath, hashed[0:1], hashed[1:2], hashed[2:], ext)
 	http.Redirect(w, r, path, 302)
 }
 
@@ -113,7 +113,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if !finfo.IsDir() {
-			path = strings.TrimPrefix(path, *OsPath)
+			path = strings.TrimPrefix(path, *osPath)
 			if strings.HasPrefix(path, "/") {
 				path = strings.TrimPrefix(path, "/")
 			}
@@ -123,7 +123,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 				Size string
 				Time string
 			}{
-				fmt.Sprintf("%s%s", *WebPath, path),
+				fmt.Sprintf("%s%s", *webPath, path),
 				bytefmt.ByteSize(uint64(finfo.Size())),
 				fmt.Sprintf("%s %s", timearr[0][1:], timearr[1]),
 			}
@@ -133,7 +133,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -148,7 +148,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 	t, err := template.New("webpage").Parse(tpl)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -156,21 +156,21 @@ func list(w http.ResponseWriter, r *http.Request) {
 	err = t.Execute(w, fileList)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
 func main() {
 	flag.Parse()
-	fs := HideDir(http.FileServer(http.Dir(*OsPath)))
-	http.Handle(*WebPath, http.StripPrefix(*WebPath, fs))
+	fs := HideDir(http.FileServer(http.Dir(*osPath)))
+	http.Handle(*webPath, http.StripPrefix(*webPath, fs))
 	http.HandleFunc("/", index)
-	http.HandleFunc("/list", BasicAuth(list, *Login, *Password))
-	http.HandleFunc("/upload", Logger(BasicAuth(upload, *Login, *Password)))
-	bind := fmt.Sprintf("%s:%d", *HttpAddr, *HttpPort)
+	http.HandleFunc("/list", BasicAuth(list, *login, *password))
+	http.HandleFunc("/upload", Logger(BasicAuth(upload, *login, *password)))
+	bind := fmt.Sprintf("%s:%d", *httpAddr, *httpPort)
 	log.Println("Starting on", bind)
-	if *Usefcgi {
+	if *useFcgi {
 		l, err := net.Listen("tcp", bind)
 		if err != nil {
 			panic(err.Error())

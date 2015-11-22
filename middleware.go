@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
+// Logger - logging time the execution of the request
 func Logger(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Printf("Access [%s] %s", r.Method, r.URL.Path)
-
 		handler(w, r)
-
 		log.Printf("Completed %q\n", time.Since(start))
 	}
 }
 
+// HideDir function hides a directory listing in FileServer function
 func HideDir(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") || r.URL.Path == "" {
@@ -29,11 +29,12 @@ func HideDir(handler http.Handler) http.Handler {
 	})
 }
 
+// BasicAuth implements authentication through the browser
 func BasicAuth(handler http.HandlerFunc, username, password string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authError := func() {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"Zork\"")
-			http.Error(w, "authorization failed", http.StatusUnauthorized)
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"Closed address\"")
+			http.Error(w, "Authorization failed", http.StatusUnauthorized)
 		}
 
 		auth := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
