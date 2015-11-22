@@ -107,7 +107,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 	fileList.Version = strings.Title(runtime.Version())
 
-	err = filepath.Walk(*OsPath, func(path string, f os.FileInfo, err error) error {
+	err = filepath.Walk(*osPath, func(path string, f os.FileInfo, err error) error {
 		finfo, err := os.Stat(path)
 		if err != nil {
 			return err
