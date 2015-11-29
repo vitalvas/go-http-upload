@@ -66,7 +66,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	var ext string
 	if len(info) > 1 {
 		if len(info) > 2 && info[len(info)-2] == "tar" && info[len(info)-1] == "gz" {
-			ext = ".tar.gz"
+			ext = fmt.Sprintf(".%s.%s", info[len(info)-2], info[len(info)-1])
 		} else {
 			ext = fmt.Sprintf(".%s", info[len(info)-1])
 		}
@@ -116,9 +116,9 @@ func list(w http.ResponseWriter, r *http.Request) {
 		}
 		if !finfo.IsDir() {
 			path = strings.TrimPrefix(path, *osPath)
-			small_path := strings.TrimPrefix(*osPath, "./")
-			if strings.HasPrefix(path, small_path) {
-				path = strings.TrimPrefix(path, small_path)
+			smallPath := strings.TrimPrefix(*osPath, "./")
+			if strings.HasPrefix(path, smallPath) {
+				path = strings.TrimPrefix(path, smallPath)
 			}
 			if strings.HasPrefix(path, "/") {
 				path = strings.TrimPrefix(path, "/")
@@ -164,6 +164,11 @@ func list(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	fmt.Fprintln(w, "User-agent: *\nDisallow: /")
+}
+
 func main() {
 	flag.Parse()
 	fs := HideDir(http.FileServer(http.Dir(*osPath)))
@@ -171,6 +176,7 @@ func main() {
 	http.HandleFunc("/", index)
 	http.HandleFunc("/list", BasicAuth(list, *login, *password))
 	http.HandleFunc("/upload", Logger(BasicAuth(upload, *login, *password)))
+	http.HandleFunc("/robots.txt", robots)
 	bind := fmt.Sprintf("%s:%d", *httpAddr, *httpPort)
 	log.Println("Starting on", bind)
 	if *useFcgi {
