@@ -32,9 +32,10 @@ var (
 )
 
 type webFile struct {
-	Name string
-	Size string
-	Time string
+	Name  string
+	Size  string
+	Time  string
+	Today bool
 }
 
 type webList struct {
@@ -138,7 +139,13 @@ func list(w http.ResponseWriter, r *http.Request) {
 				Size: bytefmt.ByteSize(uint64(finfo.Size())),
 				Time: fmt.Sprintf("%s %s", timearr[0][1:], strings.Split(timearr[1], ".")[0]),
 			}
+			if startTime.Format("2006-01-02") == timearr[0][1:] {
+				thisfile.Today = true
+			} else {
+				thisfile.Today = false
+			}
 			fileList.List = append(fileList.List, thisfile)
+
 		}
 		return nil
 	}); err != nil {
@@ -156,11 +163,14 @@ func list(w http.ResponseWriter, r *http.Request) {
 			abbr {border-bottom:1px dotted black;cursor:help;}
 			a {text-decoration:none;}
 			a:hover {text-decoration:underline;}
+			.now {background-color:#efffef}
 		</style>
 	</head>
 	<body>
 	<table>
-	{{range .List}}<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td>{{.Time}}</td><td>{{.Size}}</td></tr>{{end}}
+	{{range .List}}
+	<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td{{if .Today}} class="now"{{end}}>{{.Time}}</td><td>{{.Size}}</td></tr>
+	{{end}}
 	</table>
 	<hr>
 	<small><abbr title="GoLang Version">Go</abbr>: {{.Version}}</small> |
