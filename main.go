@@ -31,6 +31,20 @@ var (
 	useFcgi  = flag.Bool("fcgi", false, "FastCGI")
 )
 
+type webFile struct {
+	Name string
+	Size string
+	Time string
+}
+
+type webList struct {
+	List       []webFile
+	Version    string
+	LoadTime   string
+	TotalCount uint32
+	TotalSize  string
+}
+
 func upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		fmt.Fprint(w, `<html><head><title>Upload</title></head>
@@ -95,19 +109,12 @@ func index(w http.ResponseWriter, r *http.Request) {
 func list(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
-	type Web struct {
-		List []struct {
-			Name string
-			Size string
-			Time string
-		}
-		Version  string
-		LoadTime string
-	}
+	var fileList webList
+	var totalSize uint64
 
-	var fileList Web
-
-	fileList.Version = strings.Title(runtime.Version())
+	fileList.Version = strings.Title(strings.TrimPrefix(runtime.Version(), "go"))
+	fileList.TotalCount = 0
+	totalSize = 0
 
 	if err = filepath.Walk(*osPath, func(path string, f os.FileInfo, err error) error {
 		finfo, err := os.Stat(path)
@@ -115,6 +122,8 @@ func list(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if !finfo.IsDir() {
+			fileList.TotalCount++
+			totalSize += uint64(finfo.Size())
 			path = strings.TrimPrefix(path, *osPath)
 			smallPath := strings.TrimPrefix(*osPath, "./")
 			if strings.HasPrefix(path, smallPath) {
@@ -124,14 +133,10 @@ func list(w http.ResponseWriter, r *http.Request) {
 				path = strings.TrimPrefix(path, "/")
 			}
 			timearr := strings.Split(fmt.Sprintf("%q", finfo.ModTime()), " ")
-			thisfile := struct {
-				Name string
-				Size string
-				Time string
-			}{
-				fmt.Sprintf("%s%s", *webPath, path),
-				bytefmt.ByteSize(uint64(finfo.Size())),
-				fmt.Sprintf("%s %s", timearr[0][1:], timearr[1]),
+			thisfile := webFile{
+				Name: fmt.Sprintf("%s%s", *webPath, path),
+				Size: bytefmt.ByteSize(uint64(finfo.Size())),
+				Time: fmt.Sprintf("%s %s", timearr[0][1:], strings.Split(timearr[1], ".")[0]),
 			}
 			fileList.List = append(fileList.List, thisfile)
 		}
@@ -141,14 +146,29 @@ func list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const tpl = `<html><head><title>List</title></head>
-<body>
-<table>{{range .List}}
-<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td>{{.Time}}</td><td>{{.Size}}</td></tr>
-{{end}}</table>
-<hr>
-<small>Go: {{.Version}} | GT: {{.LoadTime}}</small>
-</body></html>`
+	const tpl = `<html>
+	<head>
+		<title>List</title>
+		<style>
+			table {border-collapse:collapse;}
+			table td {border: 1px solid #afafaf;padding: 1px 3px;}
+			table tr:hover {background-color:#f0f0ef}
+			abbr {border-bottom:1px dotted black;cursor:help;}
+			a {text-decoration:none;}
+			a:hover {text-decoration:underline;}
+		</style>
+	</head>
+	<body>
+	<table>
+	{{range .List}}<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td>{{.Time}}</td><td>{{.Size}}</td></tr>{{end}}
+	</table>
+	<hr>
+	<small><abbr title="GoLang Version">Go</abbr>: {{.Version}}</small> |
+	<small><abbr title="Generation Time">GT</abbr>: {{.LoadTime}}</small> |
+	<small><abbr title="Total Count">TC</abbr>: {{.TotalCount}}</small> |
+	<small><abbr title="Total Size">TS</abbr>: {{.TotalSize}}</small>
+	</body>
+</html>`
 	t, err := template.New("webpage").Parse(tpl)
 
 	if err != nil {
@@ -156,6 +176,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fileList.TotalSize = bytefmt.ByteSize(totalSize)
 	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
 
 	if err = t.Execute(w, fileList); err != nil {
