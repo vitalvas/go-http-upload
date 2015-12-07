@@ -163,7 +163,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 			abbr {border-bottom:1px dotted black;cursor:help;}
 			a {text-decoration:none;}
 			a:hover {text-decoration:underline;}
-			.now {background-color:#efffef}
+			.now {background-color:#daffda;}
 		</style>
 	</head>
 	<body>
