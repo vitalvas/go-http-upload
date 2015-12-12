@@ -22,13 +22,14 @@ import (
 var err error
 
 var (
-	httpAddr = flag.String("address", "127.0.0.1", "Http address")
-	httpPort = flag.Int("port", 8080, "Http port")
-	webPath  = flag.String("webpath", "/storage/", "Web Path")
-	osPath   = flag.String("ospath", "./storage", "OS Path")
-	login    = flag.String("login", "admin", "Web login")
-	password = flag.String("password", "admin123", "Web password")
-	useFcgi  = flag.Bool("fcgi", false, "FastCGI")
+	httpAddr   = flag.String("address", "127.0.0.1", "Http address")
+	httpPort   = flag.Int("port", 8080, "Http port")
+	webPath    = flag.String("webpath", "/storage/", "Web Path")
+	osPath     = flag.String("ospath", "./storage", "OS Path")
+	login      = flag.String("login", "admin", "Web login")
+	password   = flag.String("password", "admin123", "Web password")
+	useFcgi    = flag.Bool("fcgi", false, "FastCGI")
+	mainDomain = flag.String("domain", "localhost", "Domain for link to log system")
 )
 
 type webFile struct {
@@ -44,6 +45,7 @@ type webList struct {
 	LoadTime   string
 	TotalCount uint32
 	TotalSize  string
+	MainDomain string
 }
 
 func upload(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +106,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello!")
+	fmt.Fprintln(w, "Hello!\nSource code here: https://github.com/vitalvas/go-http-upload")
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
@@ -168,8 +170,14 @@ func list(w http.ResponseWriter, r *http.Request) {
 	</head>
 	<body>
 	<table>
+	{{$domain := .MainDomain}}
 	{{range .List}}
-	<tr><td><a href="{{.Name}}">{{.Name}}</a></td><td{{if .Today}} class="now"{{end}}>{{.Time}}</td><td>{{.Size}}</td></tr>
+	<tr>
+		<td><a href="{{.Name}}">{{.Name}}</a></td>
+		<td{{if .Today}} class="now"{{end}}>{{.Time}}</td>
+		<td>{{.Size}}</td>
+		<td><a href="https://darklog.apps.merolabs.com/search/vkey={{$domain}}{{.Name}}" target="_blank">[L]</a></td>
+	</tr>
 	{{end}}
 	</table>
 	<hr>
@@ -186,6 +194,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fileList.MainDomain = *mainDomain
 	fileList.TotalSize = bytefmt.ByteSize(totalSize)
 	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
 
