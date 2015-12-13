@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,6 +48,7 @@ type webList struct {
 	TotalCount uint32
 	TotalSize  string
 	MainDomain string
+	FilterYear []int
 }
 
 func upload(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +109,17 @@ func upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprintln(w, "Hello!\nSource code here: https://github.com/vitalvas/go-http-upload")
+}
+
+func intInSlice(a int, list []int) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +131,12 @@ func list(w http.ResponseWriter, r *http.Request) {
 	fileList.Version = strings.Title(strings.TrimPrefix(runtime.Version(), "go"))
 	fileList.TotalCount = 0
 	totalSize = 0
+	fileList.FilterYear = append(fileList.FilterYear, 0)
+	filterYear := startTime.Year()
+
+	if getYear, err := strconv.Atoi(r.URL.Query().Get("year")); err == nil {
+		filterYear = getYear
+	}
 
 	if err = filepath.Walk(*osPath, func(path string, f os.FileInfo, err error) error {
 		finfo, err := os.Stat(path)
@@ -125,6 +144,13 @@ func list(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if !finfo.IsDir() {
+			fileYear := finfo.ModTime().Year()
+			if !intInSlice(fileYear, fileList.FilterYear) {
+				fileList.FilterYear = append(fileList.FilterYear, fileYear)
+			}
+			if filterYear != fileYear && filterYear != 0 {
+				return nil
+			}
 			fileList.TotalCount++
 			totalSize += uint64(finfo.Size())
 			path = strings.TrimPrefix(path, *osPath)
@@ -147,7 +173,6 @@ func list(w http.ResponseWriter, r *http.Request) {
 				thisfile.Today = false
 			}
 			fileList.List = append(fileList.List, thisfile)
-
 		}
 		return nil
 	}); err != nil {
@@ -169,6 +194,10 @@ func list(w http.ResponseWriter, r *http.Request) {
 		</style>
 	</head>
 	<body>
+	<small>
+	Year: {{range $year := .FilterYear}}[<a href="/list?year={{$year}}">{{if eq $year 0}}ALL{{else}}{{$year}}{{end}}</a>]&nbsp;{{end}}
+	</small>
+	<hr>
 	<table>
 	{{$domain := .MainDomain}}
 	{{range .List}}
@@ -176,7 +205,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		<td><a href="{{.Name}}">{{.Name}}</a></td>
 		<td{{if .Today}} class="now"{{end}}>{{.Time}}</td>
 		<td>{{.Size}}</td>
-		<td><a href="https://darklog.apps.merolabs.com/search/vkey={{$domain}}{{.Name}}" target="_blank">[L]</a></td>
+		<td>[<a href="https://darklog.apps.merolabs.com/search/vkey={{$domain}}{{.Name}}" target="_blank">L</a>]</td>
 	</tr>
 	{{end}}
 	</table>
@@ -194,6 +223,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sort.Sort(sort.IntSlice(fileList.FilterYear))
 	fileList.MainDomain = *mainDomain
 	fileList.TotalSize = bytefmt.ByteSize(totalSize)
 	fileList.LoadTime = fmt.Sprintf("%q", time.Since(startTime))
